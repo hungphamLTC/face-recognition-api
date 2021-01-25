@@ -2,6 +2,8 @@ import express, { response } from 'express';
 import cors from 'cors';
 import knex from 'knex';
 import bcrypt from 'bcrypt-nodejs';
+
+// declare db variable using knex npm
 const db = knex({
     client: 'pg',
     connection: {
@@ -12,49 +14,20 @@ const db = knex({
     }
   });
 
-
 const app = express();
 const port = 3000;
 
 app.use(express.json());
 app.use(cors());
 
-// db.select('*').from('users').then(data=>{
-//     console.log(data);
-// });
 
-const database = {
-    users: [
-        {
-            id: '123',
-            name: 'Johanna',
-            email: 'johanna@gmail.com',
-            password: 'johanna',
-            entries: 0,
-            joined: new Date()
-        },
-        {
-            id: '124',
-            name: 'Mikko',
-            email: 'Mikko@gmail.com',
-            password: 'Mikko',
-            entries: 0,
-            joined: new Date()
-        }
-    ]
-}
-
-app.get('/', (req, res)=>{
-    //console.log(database.users[0].email, database.users[0].password);
-    res.send(database.users);
-});
-
+// Sign in function 
 app.post('/signin', (req, res)=>{
-    const {email, password} = req.body;
-    db.select('email', 'hash').from('login').where({email: email})
-        .then(data => {
-            const isValid = bcrypt.compareSync(password, data[0].hash); 
-            if(isValid){
+    const {email, password} = req.body; // getting email and password entered by user
+    db.select('email', 'hash').from('login').where({email: email}) // connect to database and compare emails
+        .then(data => { // if email is valid, then compare password
+            const isValid = bcrypt.compareSync(password, data[0].hash); // comparing password using bcrypt npm
+            if(isValid){  // if password is matched, return the user profile
                 return db.select('*').from('users').where('email', '=', email)
                         .then(user => {
                             res.json(user[0])
@@ -67,67 +40,57 @@ app.post('/signin', (req, res)=>{
         .catch(err=> res.status(400).json('wrong password or username'))
 });
 
+// register function
 app.post('/register', (req, res)=>{
-    const {name, email, password} = req.body;
+    const {name, email, password} = req.body; // getting information entered by user
     const hash = bcrypt.hashSync(password);
-    db.transaction(trx=>{
-        console.log('trx', trx);
-        trx.insert({
+    db.transaction(trx=>{ // inserting to the dabase using transaction to ensure ACID principle
+        trx.insert({ // insert to the login table first
             hash: hash,
             email: email
         })
         .into('login')
         .returning('email')
         .then(loginEmail=>{
-            console.log('loginEmail', loginEmail);
-            return trx('userss')
+            return trx('users') // do not forget to use return here.
             .returning('*')
-            .insert({
+            .insert({ // after inserting information to login table, then insert information to user table
                 name: name,
                 email: loginEmail[0], 
                 joined: new Date()
             }).then(user=> {
-                res.json(user[0]);
+                res.json(user[0]); // response user profile to front-end side
             })
         })
-        .then(trx.commit)
-        .catch(trx.rollback)
+        .then(trx.commit) // commit the transaction to the database
+        .catch(trx.rollback) // if something went wrong, do the roll back to keep the database consistency
     })
     .catch(err => res.status(400).json(err));
     
 });
 
+// showing user profile function
 app.get('/profile/:id', (req, res)=>{
-    const {id} = req.params;
-    //let found = false;
-    // database.users.forEach(user=>{
-    //     if(user.id === id){
-    //         found = true;
-    //         return res.json(user);
-    //     }
-    // })
+    const {id} = req.params; // getting user id from the link
     db.select('*').from('users').where({id: id}).then(user=>{
-        if(user.length){
+        if(user.length){ // if the user exists in the database, response the user profile to front-end side.
             res.json(user[0]);
         }else{
             res.status(400).json('Not found');
         }
         
     }).catch(err=> res.status(400).json(err));
-    // if(!found){
-    //     res.status(400).json("user not found");
-    // }
 });
 
+// update function when user post an image for the website to recognizing faces.
 app.put('/image', (req, res)=>{
-    const {id} = req.body;
+    const {id} = req.body; // getting current user id state and using it to update to the database
     db('users')
   .where('id', '=', id)
   .increment('entries',1)
   .returning('entries')
   .then(data=>{
       res.json(data[0]);
-      console.log(data[0]);
   })
   .catch(err => res.status(400).json('cannot updates'));
 });
@@ -137,4 +100,3 @@ app.listen(port, ()=>{
     console.log(`App is running on port ${port}`);
 });
 
-//console.log(app);
