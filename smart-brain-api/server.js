@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt-nodejs';
 import {handleRegister} from './controllers/register.js';
 import {handleSignIn} from './controllers/signin.js';
 import {handleProfile} from './controllers/profile.js';
-import {handleImage} from './controllers/image.js';
+import {handleImage, handleApiCall} from './controllers/image.js';
 // declare db variable using knex npm
 const db = knex({
     client: 'pg',
@@ -36,6 +36,8 @@ app.get('/profile/:id', (req, res)=> {handleProfile(req, res, db)});
 // update function when user post an image for the website to recognizing faces.
 app.put('/image', (req, res)=>{handleImage(req, res, db)});
 
+// api call 
+app.post('/imageurl', (req, res)=>{handleApiCall(req, res)});
 
 app.listen(port, ()=>{
     console.log(`App is running on port ${port}`);

@@ -1,3 +1,4 @@
+// this API GET profile only used and tested on POSTMAN, not connecting to front-end side yet.
 const handleProfile = (req, res, db)=>{
     const {id} = req.params; // getting user id from the link
     db.select('*').from('users').where({id: id}).then(user=>{
